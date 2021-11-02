@@ -151,9 +151,12 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.circle = circle;
 exports.computeBoundaries = computeBoundaries;
+exports.computeXRatio = computeXRatio;
+exports.computeYRatio = computeYRatio;
 exports.css = css;
 exports.isOver = isOver;
 exports.line = line;
+exports.toCoords = toCoords;
 exports.toDate = toDate;
 
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
@@ -169,6 +172,14 @@ function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol 
 function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
 
 function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
+function computeYRatio(height, max, min) {
+  return (max - min) / height;
+}
+
+function computeXRatio(width, length) {
+  return width / (length - 2);
+}
 
 function toDate(timestamp) {
   var shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -256,6 +267,16 @@ function css(el) {
   var styles = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
   Object.assign(el.style, styles);
 }
+
+function toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin) {
+  return function (col) {
+    return col.map(function (y, i) {
+      return [Math.floor((i - 1) * xRatio), Math.floor(DPI_HEIGHT - PADDING - (y - yMin) / yRatio)];
+    }).filter(function (_, i) {
+      return i !== 0;
+    });
+  };
+}
 },{}],"tooltip.js":[function(require,module,exports) {
 "use strict";
 
@@ -301,6 +322,184 @@ function tooltip(el) {
     }
   };
 }
+},{"./helpers":"helpers.js"}],"slider.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.sliderChart = sliderChart;
+
+var _helpers = require("./helpers");
+
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
+
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
+function _iterableToArrayLimit(arr, i) { var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"]; if (_i == null) return; var _arr = []; var _n = true; var _d = false; var _s, _e; try { for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
+
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+
+function noop() {}
+
+var HEIGHT = 40;
+var DPI_HEIGHT = HEIGHT * 2;
+
+function sliderChart(root, data, DPI_WIDTH) {
+  var WIDTH = DPI_WIDTH / 2;
+  var MIN_WIDTH = WIDTH * 0.05;
+  var canvas = root.querySelector('canvas');
+  var $left = root.querySelector('[data-el="left"]');
+  var $right = root.querySelector('[data-el="right"]');
+  var $window = root.querySelector('[data-el="window"]');
+  var ctx = canvas.getContext('2d');
+  var nextFn = noop;
+  (0, _helpers.css)(canvas, {
+    width: WIDTH + 'px',
+    height: HEIGHT + 'px'
+  });
+  canvas.width = DPI_WIDTH;
+  canvas.height = DPI_HEIGHT;
+
+  function next() {
+    nextFn(getPosition());
+  }
+
+  function mousedown(event) {
+    var type = event.target.dataset.type;
+    var dimensions = {
+      left: parseInt($window.style.left),
+      right: parseInt($window.style.right),
+      width: parseInt($window.style.width)
+    };
+
+    if (type === 'window') {
+      var startX = event.pageX;
+
+      document.onmousemove = function (ev) {
+        var delta = startX - ev.pageX;
+
+        if (delta === 0) {
+          return;
+        }
+
+        var left = dimensions.left - delta;
+        var right = WIDTH - left - dimensions.width;
+        setPosition(left, right);
+        next();
+      };
+    } else if (type === 'left' || type === 'right') {
+      var _startX = event.pageX;
+
+      document.onmousemove = function (ev) {
+        var delta = _startX - ev.pageX;
+
+        if (delta === 0) {
+          return;
+        }
+
+        if (type === 'left') {
+          var left = WIDTH - (dimensions.width + delta) - dimensions.right;
+          var right = WIDTH - (dimensions.width + delta) - left;
+          setPosition(left, right);
+        }
+
+        if (type === 'right') {
+          var _right = WIDTH - (dimensions.width - delta) - dimensions.left;
+
+          setPosition(dimensions.left, _right);
+        }
+
+        next();
+      };
+    }
+  }
+
+  function mouseup() {
+    document.onmousemove = null;
+  }
+
+  root.addEventListener('mousedown', mousedown);
+  root.addEventListener('mouseup', mouseup);
+  var defaultWidth = WIDTH * 0.3;
+  setPosition(0, WIDTH - defaultWidth);
+
+  function setPosition(left, right) {
+    var currentWidth = WIDTH - right - left;
+
+    if (currentWidth < MIN_WIDTH) {
+      (0, _helpers.css)($window, {
+        width: MIN_WIDTH + 'px'
+      });
+      return;
+    }
+
+    if (left < 0) {
+      (0, _helpers.css)($window, {
+        left: '0px'
+      });
+      (0, _helpers.css)($left, {
+        width: '0px'
+      });
+      return;
+    }
+
+    if (right < 0) {
+      (0, _helpers.css)($window, {
+        right: '0px'
+      });
+      (0, _helpers.css)($right, {
+        width: '0px'
+      });
+      return;
+    }
+
+    (0, _helpers.css)($window, {
+      width: currentWidth + 'px',
+      left: left + 'px',
+      right: right + 'px'
+    });
+    (0, _helpers.css)($right, {
+      width: right + 'px'
+    });
+    (0, _helpers.css)($left, {
+      width: left + 'px'
+    });
+  }
+
+  function getPosition() {
+    var left = parseInt($left.style.width);
+    var right = WIDTH - parseInt($right.style.width);
+    return [left * 100 / WIDTH, right * 100 / WIDTH];
+  }
+
+  var _computeBoundaries = (0, _helpers.computeBoundaries)(data),
+      _computeBoundaries2 = _slicedToArray(_computeBoundaries, 2),
+      yMin = _computeBoundaries2[0],
+      yMax = _computeBoundaries2[1];
+
+  var yRatio = (0, _helpers.computeYRatio)(DPI_HEIGHT, yMax, yMin);
+  var xRatio = (0, _helpers.computeXRatio)(DPI_WIDTH, data.columns[0].length);
+  var yData = data.columns.filter(function (col) {
+    return data.types[col[0]] === 'line';
+  });
+  yData.map((0, _helpers.toCoords)(xRatio, yRatio, DPI_HEIGHT, -5, yMin)).forEach(function (coords, i) {
+    var color = data.colors[yData[i][0]];
+    (0, _helpers.line)(ctx, coords, {
+      color: color
+    });
+  });
+  return {
+    subscribe: function subscribe(fn) {
+      nextFn = fn;
+      fn(getPosition());
+    }
+  };
+}
 },{"./helpers":"helpers.js"}],"chart.js":[function(require,module,exports) {
 "use strict";
 
@@ -312,6 +511,8 @@ exports.chart = chart;
 var _helpers = require("./helpers");
 
 var _tooltip = require("./tooltip");
+
+var _slider = require("./slider");
 
 function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e2) { throw _e2; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e3) { didErr = true; err = _e3; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
 
@@ -337,9 +538,10 @@ var ROWS_COUNT = 5;
 var VIEW_WIDTH = DPI_WIDTH;
 
 function chart(root, data) {
-  var canvas = root.querySelector('canvas');
-  var ctx = canvas.getContext('2d');
+  var canvas = root.querySelector('[data-el="main"]');
   var tip = (0, _tooltip.tooltip)(root.querySelector('[data-el="tooltip"]'));
+  var slider = (0, _slider.sliderChart)(root.querySelector('[data-el="slider"]'), data, DPI_WIDTH);
+  var ctx = canvas.getContext('2d');
   var raf;
   (0, _helpers.css)(canvas, {
     width: WIDTH + 'px',
@@ -357,21 +559,36 @@ function chart(root, data) {
 
   function paint() {
     clearCanvas();
+    var length = data.columns[0].length;
+    var leftIndex = Math.round(length * proxy.pos[0] / 100);
+    var rightIndex = Math.round(length * proxy.pos[1] / 100);
+    var columns = data.columns.map(function (col) {
+      var res = col.slice(leftIndex, rightIndex);
 
-    var _computeBoundaries = (0, _helpers.computeBoundaries)(data),
+      if (typeof res[0] !== 'string') {
+        res.unshift(col[0]);
+      }
+
+      return res;
+    });
+
+    var _computeBoundaries = (0, _helpers.computeBoundaries)({
+      columns: columns,
+      types: data.types
+    }),
         _computeBoundaries2 = _slicedToArray(_computeBoundaries, 2),
         yMin = _computeBoundaries2[0],
         yMax = _computeBoundaries2[1];
 
-    var yRatio = VIEW_HEIGHT / (yMax - yMin);
-    var xRatio = VIEW_WIDTH / (data.columns[0].length - 2);
-    var yData = data.columns.filter(function (col) {
+    var yRatio = (0, _helpers.computeYRatio)(VIEW_HEIGHT, yMax, yMin);
+    var xRatio = (0, _helpers.computeXRatio)(VIEW_WIDTH, columns[0].length);
+    var yData = columns.filter(function (col) {
       return data.types[col[0]] === 'line';
     });
-    var xData = data.columns.filter(function (col) {
+    var xData = columns.filter(function (col) {
       return data.types[col[0]] !== 'line';
     })[0];
-    yData.map(toCoords(xRatio, yRatio)).forEach(function (coords, i) {
+    yData.map((0, _helpers.toCoords)(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin)).forEach(function (coords, i) {
       var color = data.colors[yData[i][0]];
       (0, _helpers.line)(ctx, coords, {
         color: color
@@ -467,6 +684,9 @@ function chart(root, data) {
     ctx.closePath(); // ===
   }
 
+  slider.subscribe(function (pos) {
+    proxy.pos = pos;
+  });
   canvas.addEventListener('mousemove', mousemove);
   canvas.addEventListener('mouseleave', mouseleave);
 
@@ -508,17 +728,7 @@ function chart(root, data) {
     }
   };
 }
-
-function toCoords(xRatio, yRatio) {
-  return function (col) {
-    return col.map(function (y, i) {
-      return [Math.floor((i - 1) * xRatio), Math.floor(DPI_HEIGHT - PADDING - y * yRatio)];
-    }).filter(function (_, i) {
-      return i !== 0;
-    });
-  };
-}
-},{"./helpers":"helpers.js","./tooltip":"tooltip.js"}],"app.js":[function(require,module,exports) {
+},{"./helpers":"helpers.js","./tooltip":"tooltip.js","./slider":"slider.js"}],"app.js":[function(require,module,exports) {
 "use strict";
 
 var _data = require("./data");
@@ -555,7 +765,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "58044" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65096" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
