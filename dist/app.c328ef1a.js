@@ -154,6 +154,7 @@ exports.computeBoundaries = computeBoundaries;
 exports.computeXRatio = computeXRatio;
 exports.computeYRatio = computeYRatio;
 exports.css = css;
+exports.getSlicedGapColumns = getSlicedGapColumns;
 exports.isOver = isOver;
 exports.line = line;
 exports.toCoords = toCoords;
@@ -197,10 +198,13 @@ function isOver(mouse, x, length, DPI_WIDTH) {
 }
 
 function line(ctx, coords, _ref) {
-  var color = _ref.color;
+  var color = _ref.color,
+      translate = _ref.translate;
   ctx.beginPath(); // command inform canvas that painting will be here
 
+  ctx.save();
   ctx.lineWidth = 4;
+  ctx.translate(translate, 0);
   ctx.strokeStyle = color;
 
   var _iterator = _createForOfIteratorHelper(coords),
@@ -222,6 +226,7 @@ function line(ctx, coords, _ref) {
 
   ctx.stroke(); // command connecting dots with lines from buffer
 
+  ctx.restore();
   ctx.closePath(); // command inform canvas that painting stopped
 }
 
@@ -233,6 +238,7 @@ function circle(ctx, _ref2, color) {
   var CIRCLE_RADIUS = 8;
   ctx.beginPath();
   ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
   ctx.fillStyle = '#fff';
   ctx.arc(x, y, CIRCLE_RADIUS, 0, Math.PI * 2);
   ctx.fill();
@@ -276,6 +282,18 @@ function toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin) {
       return i !== 0;
     });
   };
+}
+
+function getSlicedGapColumns(data, leftIndex, rightIndex) {
+  return data.columns.map(function (col) {
+    var res = col.slice(leftIndex, rightIndex);
+
+    if (typeof res[0] !== 'string') {
+      res.unshift(col[0]);
+    }
+
+    return res;
+  });
 }
 },{}],"tooltip.js":[function(require,module,exports) {
 "use strict";
@@ -536,6 +554,7 @@ var DPI_HEIGHT = HEIGHT * 2;
 var VIEW_HEIGHT = DPI_HEIGHT - PADDING * 2;
 var ROWS_COUNT = 5;
 var VIEW_WIDTH = DPI_WIDTH;
+var SPEED = 300;
 
 function chart(root, data) {
   var canvas = root.querySelector('[data-el="main"]');
@@ -543,6 +562,7 @@ function chart(root, data) {
   var slider = (0, _slider.sliderChart)(root.querySelector('[data-el="slider"]'), data, DPI_WIDTH);
   var ctx = canvas.getContext('2d');
   var raf;
+  var prevMax;
   (0, _helpers.css)(canvas, {
     width: WIDTH + 'px',
     height: HEIGHT + 'px'
@@ -557,20 +577,29 @@ function chart(root, data) {
     }
   });
 
+  function getMax(yMax) {
+    var step = (yMax - prevMax) / SPEED;
+
+    if (proxy.max < yMax) {
+      proxy.max += step;
+    } else if (proxy.max > yMax) {
+      proxy.max = yMax;
+      prevMax = yMax;
+    }
+
+    return proxy.max;
+  }
+
+  function translateX(length, xRatio, left) {
+    return -1 * Math.round(length * left * xRatio / 100);
+  }
+
   function paint() {
     clearCanvas();
     var length = data.columns[0].length;
     var leftIndex = Math.round(length * proxy.pos[0] / 100);
     var rightIndex = Math.round(length * proxy.pos[1] / 100);
-    var columns = data.columns.map(function (col) {
-      var res = col.slice(leftIndex, rightIndex);
-
-      if (typeof res[0] !== 'string') {
-        res.unshift(col[0]);
-      }
-
-      return res;
-    });
+    var columns = (0, _helpers.getSlicedGapColumns)(data, leftIndex, rightIndex);
 
     var _computeBoundaries = (0, _helpers.computeBoundaries)({
       columns: columns,
@@ -580,19 +609,36 @@ function chart(root, data) {
         yMin = _computeBoundaries2[0],
         yMax = _computeBoundaries2[1];
 
-    var yRatio = (0, _helpers.computeYRatio)(VIEW_HEIGHT, yMax, yMin);
+    if (!prevMax) {
+      prevMax = yMax;
+      proxy.max = yMax;
+    }
+
+    var max = getMax(yMax);
+    var yRatio = (0, _helpers.computeYRatio)(VIEW_HEIGHT, max, yMin);
     var xRatio = (0, _helpers.computeXRatio)(VIEW_WIDTH, columns[0].length);
-    var yData = columns.filter(function (col) {
+    var translate = translateX(data.columns[0].length, xRatio, proxy.pos[0]);
+    var yData = data.columns.filter(function (col) {
       return data.types[col[0]] === 'line';
     });
-    var xData = columns.filter(function (col) {
+    var xData = data.columns.filter(function (col) {
+      return data.types[col[0]] !== 'line';
+    })[0];
+    var slicedYData = columns.filter(function (col) {
+      return data.types[col[0]] === 'line';
+    });
+    var slicedXData = columns.filter(function (col) {
       return data.types[col[0]] !== 'line';
     })[0];
     yData.map((0, _helpers.toCoords)(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin)).forEach(function (coords, i) {
       var color = data.colors[yData[i][0]];
       (0, _helpers.line)(ctx, coords, {
-        color: color
+        color: color,
+        translate: translate
       });
+    });
+    slicedYData.map((0, _helpers.toCoords)(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin)).forEach(function (coords, i) {
+      var color = data.colors[yData[i][0]];
 
       var _iterator = _createForOfIteratorHelper(coords),
           _step;
@@ -615,25 +661,25 @@ function chart(root, data) {
         _iterator.f();
       }
     });
-    yAxis(yMax, yMin);
-    xAxis(xData, yData, xRatio);
+    yAxis(yMin, max);
+    xAxis(slicedXData, slicedYData, xRatio);
   }
 
-  function xAxis(xData, yData, xRatio) {
+  function xAxis(slicedXData, slicedYData, xRatio) {
     // === painting X axis markup
     var colsCount = 6;
-    var step = Math.round(xData.length / colsCount);
+    var step = Math.round(slicedXData.length / colsCount);
     ctx.beginPath();
 
     var _loop = function _loop(i) {
       var x = i * xRatio;
 
       if ((i - 1) % step === 0) {
-        var text = (0, _helpers.toDate)(xData[i]);
+        var text = (0, _helpers.toDate)(slicedXData[i]);
         ctx.fillText(text.toString(), x, DPI_HEIGHT - 10);
       }
 
-      if ((0, _helpers.isOver)(proxy.mouse, x, xData.length, DPI_WIDTH)) {
+      if ((0, _helpers.isOver)(proxy.mouse, x, slicedXData.length, DPI_WIDTH)) {
         ctx.save(); // saving previous canvas
 
         ctx.moveTo(x, PADDING / 2);
@@ -641,8 +687,8 @@ function chart(root, data) {
         ctx.restore(); // restore canvas
 
         tip.show(proxy.mouse.tooltip, {
-          title: (0, _helpers.toDate)(xData[i]),
-          items: yData.map(function (col) {
+          title: (0, _helpers.toDate)(slicedXData[i]),
+          items: slicedYData.map(function (col) {
             return {
               color: data.colors[col[0]],
               name: data.names[col[0]],
@@ -653,7 +699,7 @@ function chart(root, data) {
       }
     };
 
-    for (var i = 1; i < xData.length; i++) {
+    for (var i = 1; i < slicedXData.length; i++) {
       _loop(i);
     }
 
@@ -661,7 +707,7 @@ function chart(root, data) {
     ctx.closePath(); // ===
   }
 
-  function yAxis(yMax, yMin) {
+  function yAxis(yMin, yMax) {
     // === painting Y axis markup
     var step = VIEW_HEIGHT / ROWS_COUNT;
     var textStep = (yMax - yMin) / ROWS_COUNT;
@@ -765,7 +811,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65096" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "52386" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

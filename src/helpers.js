@@ -34,14 +34,17 @@ export function isOver(mouse, x, length, DPI_WIDTH) {
 }
 
 
-export function line(ctx, coords, { color }) {
+export function line(ctx, coords, { color, translate }) {
   ctx.beginPath() // command inform canvas that painting will be here
+  ctx.save()
   ctx.lineWidth = 4
+  ctx.translate(translate, 0)
   ctx.strokeStyle = color
   for (const [x ,y] of coords) {
     ctx.lineTo(x, y) // command painting line in buffer
   }
   ctx.stroke() // command connecting dots with lines from buffer
+  ctx.restore()
   ctx.closePath() // command inform canvas that painting stopped
 }
 
@@ -49,6 +52,7 @@ export function circle(ctx, [x, y], color) {
   const CIRCLE_RADIUS = 8
   ctx.beginPath()
   ctx.strokeStyle = color
+  ctx.lineWidth = 4
   ctx.fillStyle = '#fff'
   ctx.arc(x, y, CIRCLE_RADIUS, 0, Math.PI * 2)
   ctx.fill()
@@ -56,8 +60,7 @@ export function circle(ctx, [x, y], color) {
   ctx.closePath()
 }
 
-export
-function computeBoundaries({ columns, types }) {
+export function computeBoundaries({ columns, types }) {
   let min
   let max
   columns.forEach(col => {
@@ -88,4 +91,14 @@ export function toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin) {
     Math.floor((i - 1) * xRatio),
     Math.floor(DPI_HEIGHT - PADDING - (y - yMin) / yRatio)
   ]).filter((_,i) => i !== 0)
+}
+
+export function getSlicedGapColumns(data, leftIndex, rightIndex) {
+  return data.columns.map(col => {
+    const res = col.slice(leftIndex, rightIndex)
+    if (typeof res[0] !== 'string') {
+      res.unshift(col[0])
+    }
+    return res
+  })
 }
