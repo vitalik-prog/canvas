@@ -154,6 +154,7 @@ exports.computeBoundaries = computeBoundaries;
 exports.computeXRatio = computeXRatio;
 exports.computeYRatio = computeYRatio;
 exports.css = css;
+exports.filterData = filterData;
 exports.getSlicedGapColumns = getSlicedGapColumns;
 exports.isOver = isOver;
 exports.line = line;
@@ -294,6 +295,30 @@ function getSlicedGapColumns(data, leftIndex, rightIndex) {
 
     return res;
   });
+}
+
+function filterData(data, attributeToDelete) {
+  var _loop = function _loop(key) {
+    for (var subkey in data[key]) {
+      if (subkey === attributeToDelete) {
+        delete data[key][subkey];
+      }
+    }
+
+    if (key === 'columns') {
+      data[key].map(function (col, index) {
+        if (col[0] === attributeToDelete) {
+          data[key].splice(index, 1);
+        }
+      });
+    }
+  };
+
+  for (var key in data) {
+    _loop(key);
+  }
+
+  return data;
 }
 },{}],"tooltip.js":[function(require,module,exports) {
 "use strict";
@@ -774,16 +799,86 @@ function chart(root, data) {
     }
   };
 }
-},{"./helpers":"helpers.js","./tooltip":"tooltip.js","./slider":"slider.js"}],"app.js":[function(require,module,exports) {
+},{"./helpers":"helpers.js","./tooltip":"tooltip.js","./slider":"slider.js"}],"checkbox.js":[function(require,module,exports) {
 "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.checkbox = checkbox;
+
+var _helpers = require("./helpers");
+
+var _app = require("./app");
+
+var checkboxBlockTemplate = function checkboxBlockTemplate(colors) {
+  return "\n <div class=\"tg-chart-checkbox\">\n    <label for=\"joined\">Joined<span style=\"background-color: ".concat(colors.y0, "\" data-el=\"joined\"></span><input id=\"joined\" checked=\"checked\" type=\"checkbox\" name=\"checkbox\" value=\"value\"></label>\n </div>\n <div class=\"tg-chart-checkbox\">\n    <label for=\"left\">Left<span style=\"background-color: ").concat(colors.y1, "\" data-el=\"detached\"></span><input id=\"detached\" checked=\"checked\" type=\"checkbox\" name=\"checkbox\" value=\"value\"></label>\n </div>\n");
+};
+
+function checkbox(el, data) {
+  el.innerHTML = '';
+  el.insertAdjacentHTML("afterbegin", checkboxBlockTemplate(data.colors));
+  var joinedElement = document.querySelector('[data-el="joined"]');
+  var leftElement = document.querySelector('[data-el="detached"]');
+  joinedElement.addEventListener('click', function (event) {
+    return (0, _app.dataChoice)(event);
+  });
+  leftElement.addEventListener('click', function (event) {
+    return (0, _app.dataChoice)(event);
+  });
+}
+},{"./helpers":"helpers.js","./app":"app.js"}],"app.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.dataChoice = void 0;
 
 var _data = require("./data");
 
 var _chart = require("./chart");
 
-var tgChart = (0, _chart.chart)(document.getElementById('chart'), (0, _data.getChartData)());
-tgChart.init();
-},{"./data":"data.js","./chart":"chart.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+var _checkbox = require("./checkbox");
+
+var _helpers = require("./helpers");
+
+var data = (0, _data.getChartData)();
+(0, _checkbox.checkbox)(document.querySelector('[data-el="checkbox"]'), data);
+var colors = data.colors;
+
+var dataChoice = function dataChoice(event) {
+  var data = (0, _data.getChartData)();
+
+  if (event) {
+    var el = event.target;
+    var attribute = el.getAttribute('data-el');
+    var inputEl = document.getElementById(attribute);
+
+    if (inputEl.hasAttribute('checked')) {
+      el.style.backgroundColor = 'transparent';
+      inputEl.removeAttribute('checked');
+    } else {
+      el.style.backgroundColor = attribute === 'joined' ? colors.y0 : colors.y1;
+      inputEl.setAttribute('checked', 'checked');
+    }
+  }
+
+  if (!document.getElementById('joined').hasAttribute('checked')) {
+    data = (0, _helpers.filterData)(data, 'y0');
+  }
+
+  if (!document.getElementById('detached').hasAttribute('checked')) {
+    data = (0, _helpers.filterData)(data, 'y1');
+  }
+
+  var tgChart = (0, _chart.chart)(document.getElementById('chart'), data);
+  tgChart.init();
+};
+
+exports.dataChoice = dataChoice;
+dataChoice();
+},{"./data":"data.js","./chart":"chart.js","./checkbox":"checkbox.js","./helpers":"helpers.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -811,7 +906,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "52386" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49982" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

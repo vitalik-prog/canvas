@@ -5,121 +5,8 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>TG Graph</title>
-    <style>* {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        list-style: none;
-      }
-
-      body {
-        background: #666;
-        font-family: sans-serif;
-      }
-
-      .container {
-        max-width: 800px;
-        margin: 5rem auto;
-      }
-
-      .card {
-        display: flex;
-        justify-content: center;
-        border-radius: 4px;
-        background: #fff;
-        padding: 1rem;
-        box-shadow: 2px 3px 10px rgba(0, 0, 0, 0.2);
-      }
-      canvas {
-        z-index: 2;
-      }
-      .tg-chart {
-        position: relative;
-      }
-      .tg-chart-slider {
-        position: relative;
-        margin-bottom: 1rem;
-        z-index: 1;
-      }
-      .tg-chart-slider__right,
-      .tg-chart-slider__left {
-        transition: background-color 0.22s ease-in-out;
-        background: #f5f9fb;
-        opacity: 0.8;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-      }
-      .tg-chart-slider__right {
-        right: 0;
-      }
-      .tg-chart-slider__left {
-        left: 0;
-      }
-      .tg-chart-slider__arrow--left,
-      .tg-chart-slider__arrow--right {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        transition: background-color 0.22s ease-in-out;
-        background: #ddeaf3;
-        width: 4px;
-      }
-      .tg-chart-slider__arrow--left {
-        right: 0;
-        cursor: w-resize;
-      }
-      .tg-chart-slider__arrow--right {
-        left: 0;
-        cursor: e-resize;
-      }
-      .tg-chart-slider__window {
-        position: absolute;
-        background: transparent;
-        top: 0;
-        bottom: 0;
-      }
-      .tg-chart-tooltip {
-        position: absolute;
-        display: none;
-        max-width: 200px;
-        min-width: 120px;
-        padding: 0.5rem;
-        border-radius: 5px;
-        border: 1px solid #dfe6eb;
-        box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05);
-        background: #fff;
-        color: #000;
-        overflow: hidden;
-        z-index: 3;
-        top: 50px;
-        left: 100px;
-      }
-      .tooltip-title {
-        text-align: center;
-        margin-bottom: 0.5rem;
-        white-space: nowrap;
-      }
-      .tooltip-list {
-        display: flex;
-        flex-wrap: wrap;
-        margin: 0;
-        padding: 0;
-      }
-      .tooltip-list-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        flex-grow: 1;
-      }
-      .name {
-        font-size: 0.8rem;
-      }
-      .value {
-        font-size: 1rem;
-        font-weight: bold;
-      }</style>
-  </head>
+    <link rel="stylesheet" href="/styles.164d45a1.css">
+  <script src="/styles.164d45a1.js"></script></head>
   <body>
     <div class="container">
       <div class="card">
@@ -137,7 +24,7 @@
             </div>
           </div>
         </div>
-
+        <div data-el="checkbox"></div>
       </div>
     </div>
     <script src="/app.c328ef1a.js"></script>
