@@ -102,3 +102,22 @@ export function getSlicedGapColumns(data, leftIndex, rightIndex) {
     return res
   })
 }
+
+export function filterData(data, attributeToDelete) {
+  for (let key in data) {
+    for (let subkey in data[key]) {
+      if (subkey === attributeToDelete) {
+        delete data[key][subkey]
+      }
+    }
+    if (key === 'columns') {
+      data[key].map((col, index) => {
+        if (col[0] === attributeToDelete) {
+          data[key].splice(index, 1)
+        }
+      })
+    }
+  }
+
+  return data
+}
